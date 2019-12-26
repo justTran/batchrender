@@ -2,7 +2,6 @@ import psutil
 import subprocess
 import os
 import pyautogui
-import time
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import *
@@ -88,11 +87,11 @@ class Window(Frame):
 
         while self.queue != []:
             p = subprocess.Popen([self.queue[0], self.vegasdir], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            time.sleep(12)
+            root.after(12000)
             self.clickEvent()
             self.checkCPU(p)
             p.wait()
-            time.sleep(1)
+            root.after(1000)
             self.listbox.delete(0)
             self.queue.pop(0)
 
@@ -122,7 +121,7 @@ class Window(Frame):
     """
     def checkCPU(self, p):
         if(self.getAvg() >= 70.0 and self.checkVegas()):
-            time.sleep(90)
+            root.after(90000)
             self.checkCPU(p)
 
         else:
