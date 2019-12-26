@@ -12,7 +12,7 @@ class Window(Frame):
 
     def __init__(self, master = None):
         Frame.__init__(self, master)
-        pyautogui.PAUSE = 2.5            
+        pyautogui.PAUSE = 2.5
         self.master = master
         self.vegasdir = "C:\Program Files\VEGAS\VEGAS Pro 14.0\vegas140.exe"    #path to vegas
         self.projectdir = 'E:\Videos\Projects'                                  #path for projects
@@ -82,12 +82,17 @@ class Window(Frame):
             messagebox.showwarning("Warning", "There are no files in the queue.")
             return
 
+        if (self.checkVegas()):
+            messagebox.showwarning("Warning", "Vegas is already running. Please close Vegas.")
+            return
+
         while self.queue != []:
             p = subprocess.Popen([self.queue[0], self.vegasdir], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
             time.sleep(12)
             self.clickEvent()
             self.checkCPU(p)
             p.wait()
+            time.sleep(1)
             self.listbox.delete(0)
             self.queue.pop(0)
 
@@ -116,12 +121,14 @@ class Window(Frame):
     Otherwise, kill Sony Vegas and proceed.
     """
     def checkCPU(self, p):
-        if(self.getAvg() >= 70.0):
+        if(self.getAvg() >= 70.0 and self.checkVegas()):
             time.sleep(90)
             self.checkCPU(p)
 
         else:
-            self.terminateVegas(p)
+            if (self.checkVegas()):
+                self.terminateVegas(p)
+
             return
 
     """
@@ -140,6 +147,18 @@ class Window(Frame):
     """
     def terminateVegas(self, p):
         subprocess.Popen("taskkill /F /T /PID %i" %p.pid , shell=True)
+
+    """
+    This function determines if Vegas is currently running.
+    """
+    def checkVegas(self):
+        for process in psutil.process_iter():
+            try:
+                if "vegas140.exe" in process.name().lower():
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        return False
             
 root = Tk()
 root.geometry("400x300")
