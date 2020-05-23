@@ -2,6 +2,7 @@ import psutil
 import subprocess
 import os
 import pyautogui
+import threading
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import *
@@ -13,6 +14,7 @@ class Window(Frame):
         Frame.__init__(self, master)
         pyautogui.PAUSE = 2.5
         self.master = master
+        self.shouldContinue = False
         self.vegasdir = "C:\Program Files\VEGAS\VEGAS Pro 14.0\vegas140.exe"    #path to vegas
         self.projectdir = 'E:\Videos\Projects'                                  #path for projects
         self.queue = []                                                         #initialize queue
@@ -28,12 +30,35 @@ class Window(Frame):
         self.listbox = Listbox(self, yscrollcommand = self.scrollbar.set, selectmode = MULTIPLE, height = 15, width = 65) 
         self.enqueueButton = Button(self, text = "Enqueue file", command = self.fileBrowse)
         self.dequeueButton = Button(self, text = "Dequeue files", command = self.dequeue) 
-        self.renderButton = Button(self, text = "Render", command = self.render)
+        self.renderButton = Button(self, text = "Render", command = self.dummy_function)
         self.scrollbar.config(command = self.listbox.yview)
         self.enqueueButton.place(x = 0, y = 0)
         self.dequeueButton.place(x = 75, y = 0)
         self.renderButton.place(x = 155, y = 0)
         self.listbox.place(x = 0, y = 50)
+
+    """
+    This function uses a boolean statement to determine what to do next.
+    """
+    def checkTask(self):
+        if self.queue == []:
+            messagebox.showwarning("Warning", "There are no files in the queue.")
+            return
+
+        if (self.checkVegas()):
+            messagebox.showwarning("Warning", "Vegas is already running. Please close Vegas.")
+            return
+
+        if self.shouldContinue and self.queue != []:
+            self.render()
+
+        elif not self.shouldContinue and self.queue != []:
+            print("stop")
+            self.refreshGUI(False, False, False)
+            #self.refreshGUI(True, True, True)
+
+        elif self.shouldContinue and self.queue == []:
+            print("Shutting down")
 
     """
     This function handles the searching of a project file. 
@@ -77,15 +102,7 @@ class Window(Frame):
     Then it will shutdown the computer.
     """
     def render(self):
-        if self.queue == []:
-            messagebox.showwarning("Warning", "There are no files in the queue.")
-            return
-
-        if (self.checkVegas()):
-            messagebox.showwarning("Warning", "Vegas is already running. Please close Vegas.")
-            return
-
-        while self.queue != []:
+        if self.queue != []:
             p = subprocess.Popen([self.queue[0], self.vegasdir], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
             root.after(12000)
             self.clickEvent()
@@ -94,8 +111,7 @@ class Window(Frame):
             root.after(1000)
             self.listbox.delete(0)
             self.queue.pop(0)
-
-        self.shutdown()
+            self.checkTask()
 
     """
     This function shuts the computer down after 3 minutes.
@@ -158,6 +174,53 @@ class Window(Frame):
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
         return False
+
+    """
+    Debug functions
+    """
+    def dummy_function(self):
+        self.shouldContinue = True
+        self.refreshGUI(True, True, True)
+        t1 = threading.Thread(target=self.dummy_execute)
+        t1.start()
+    
+    def dummy_execute(self):
+        try:
+            p = subprocess.Popen(['notepad.exe'], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            p.wait()
+            self.refreshGUI(False, False, False)
+            self.listbox.delete(0)
+            self.queue.pop(0)
+            self.checkTask()
+        except:
+            pass
+
+    def refreshGUI(self, enqueue, dequeue, render):
+        if enqueue:
+            self.enqueueButton.configure(state="disable")
+        
+        else:
+            self.enqueueButton.configure(state="enable")
+
+        if dequeue:
+            self.dequeueButton.configure(state="disable")
+
+        else:
+            self.dequeueButton.configure(state="enable")
+
+        if render:
+            self.renderButton.configure(text="Stop render", command=self.stop)
+
+        else:
+            self.renderButton.configure(state="enable", text="Render", command=self.dummy_function)
+
+        root.update()
+        #root.after(1000, self.refreshGUI)
+
+    def stop(self):
+        print("Will stop after this render")
+        self.shouldContinue = False
+        self.renderButton.configure(state="disable")
             
 root = Tk()
 root.geometry("400x300")
